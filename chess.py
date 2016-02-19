@@ -37,6 +37,8 @@ class Game(object):
 
 	def setup_network(self):
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.server = None
+		self.listener = None
 		self.data = None
 
 	def connect_to(self, address, port):
@@ -48,7 +50,10 @@ class Game(object):
 
 	def serve(self):
 		# Wait for connection
+		game.disabled = True
 		connection, address = self.socket.accept()
+		print("New connection from %s:%s" % address)
+		game.disabled = False
 
 		# Wait for mouse input
 		self.disabled = False
@@ -102,6 +107,7 @@ class Game(object):
 		connection.close()
 
 	def listen(self):
+		print("Connected to the server")
 		self.disabled = True
 
 		while True:
@@ -132,7 +138,6 @@ class Game(object):
 			print("put %s, %s" % self.data)
 			self.socket.sendall(
 				("place %s %s" % self.data).encode("ascii")
-
 			)
 
 			# Already won
@@ -142,12 +147,12 @@ class Game(object):
 		self.socket.close()
 
 	def setup_server(self):
-		self.server = threading.Thread(target=Game.serve, args=(self, ))
-		self.server.start()
+		self.server = system.Thread(Game.serve, self)
+		self.server.launch()
 
 	def setup_client(self):
-		self.listener = threading.Thread(target=Game.listen, args=(self, ))
-		self.listener.start()
+		self.listener = system.Thread(Game.listen, self)
+		self.listener.launch()
 
 	def place(self, i, j, color):
 		self.data = None
@@ -420,3 +425,5 @@ if __name__ == "__main__":
 		print("(error) Unknown command: {}".format(command))
 
 	game.run()
+
+	print("Game exited")
