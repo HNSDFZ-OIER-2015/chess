@@ -8,7 +8,9 @@ import socket
 import threading
 
 from math import *
-from sfml import *
+from sfml.window import *
+from sfml.graphics import *
+from sfml.system import *
 
 class Game(object):
 	WINDOW_WIDTH = 570
@@ -24,9 +26,14 @@ class Game(object):
 	def __init__(self):
 		super(Game, self).__init__()
 
-		self.window = graphics.RenderWindow(
-			VideoMode(self.WINDOW_WIDTH, self.WINDOW_HEIGHT),
-			self.WINDOW_TITLE
+		setting  = ContextSettings()
+		setting.antialiasing_level = 4
+
+		self.window = RenderWindow(
+			mode=VideoMode(self.WINDOW_WIDTH, self.WINDOW_HEIGHT),
+			title=self.WINDOW_TITLE,
+			style=Style.TITLEBAR | Style.CLOSE,
+			settings=setting
 		)
 		self.window.framerate_limit = 60
 
@@ -37,8 +44,6 @@ class Game(object):
 
 	def setup_network(self):
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.server = None
-		self.listener = None
 		self.data = None
 
 	def connect_to(self, address, port):
@@ -50,10 +55,7 @@ class Game(object):
 
 	def serve(self):
 		# Wait for connection
-		game.disabled = True
 		connection, address = self.socket.accept()
-		print("New connection from %s:%s" % address)
-		game.disabled = False
 
 		# Wait for mouse input
 		self.disabled = False
@@ -107,7 +109,6 @@ class Game(object):
 		connection.close()
 
 	def listen(self):
-		print("Connected to the server")
 		self.disabled = True
 
 		while True:
@@ -138,6 +139,7 @@ class Game(object):
 			print("put %s, %s" % self.data)
 			self.socket.sendall(
 				("place %s %s" % self.data).encode("ascii")
+
 			)
 
 			# Already won
@@ -147,12 +149,12 @@ class Game(object):
 		self.socket.close()
 
 	def setup_server(self):
-		self.server = system.Thread(Game.serve, self)
-		self.server.launch()
+		self.server = threading.Thread(target=Game.serve, args=(self, ))
+		self.server.start()
 
 	def setup_client(self):
-		self.listener = system.Thread(Game.listen, self)
-		self.listener.launch()
+		self.listener = threading.Thread(target=Game.listen, args=(self, ))
+		self.listener.start()
 
 	def place(self, i, j, color):
 		self.data = None
@@ -408,22 +410,22 @@ class Game(object):
 			self.render()
 
 if __name__ == "__main__":
-	command = sys.argv[1]
-	address = sys.argv[2]
-	port = int(sys.argv[3])
-
 	game = Game()
 
-	game.setup_network()
-	if command == "create":
-		game.bind_to(address, port)
-		game.setup_server()
-	elif command == "join":
-		game.connect_to(address, port)
-		game.setup_client()
-	else:
-		print("(error) Unknown command: {}".format(command))
+	if len(sys.argv) > 1:
+		command = sys.argv[1]
+		address = sys.argv[2]
+		port = int(sys.argv[3])
+
+
+		game.setup_network()
+		if command == "create":
+			game.bind_to(address, port)
+			game.setup_server()
+		elif command == "join":
+			game.connect_to(address, port)
+			game.setup_client()
+		else:
+			print("(error) Unknown command: {}".format(command))
 
 	game.run()
-
-	print("Game exited")
